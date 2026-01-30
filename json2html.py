@@ -133,17 +133,37 @@ def generate_html(data, output_file):
             points[0]['display_timestamp_ms'] = points[0]['timestamp_ms']
             points[0]['display_y'] = points[0]['category_index']
     
-    # Layer color definitions
-    layer_colors = {
-        1: '#667eea',
-        2: '#28a745',
-        3: '#ffc107'
-    }
-    layer_names = {
-        1: 'Layer 1',
-        2: 'Layer 2',
-        3: 'Layer 3'
-    }
+    # Layer color definitions - array for cycling through many layers
+    layer_color_palette = [
+        '#667eea',  # Purple-blue
+        '#28a745',  # Green
+        '#ffc107',  # Yellow
+        '#dc3545',  # Red
+        '#17a2b8',  # Cyan
+        '#fd7e14',  # Orange
+        '#6f42c1',  # Purple
+        '#20c997',  # Teal
+        '#e83e8c',  # Pink
+        '#007bff',  # Blue
+        '#6610f2',  # Indigo
+        '#795548',  # Brown
+        '#607d8b',  # Blue-grey
+        '#4caf50',  # Light green
+        '#ff5722',  # Deep orange
+        '#9c27b0',  # Deep purple
+        '#00bcd4',  # Light cyan
+        '#8bc34a',  # Lime
+        '#ff9800',  # Amber
+        '#3f51b5',  # Indigo blue
+    ]
+    
+    def get_layer_color(layer: int) -> str:
+        """Get color for layer, cycling through palette."""
+        return layer_color_palette[(layer - 1) % len(layer_color_palette)]
+    
+    def get_layer_name(layer: int) -> str:
+        """Get display name for layer."""
+        return f'Layer {layer}'
     
     # Group by (subclassname, layer) to create series (using defaultdict)
     subclass_layer_series = defaultdict(list)
@@ -168,8 +188,8 @@ def generate_html(data, output_file):
     sorted_keys = sorted(subclass_layer_series.keys())
     
     for (subclassname, layer) in sorted_keys:
-        layer_color = layer_colors.get(layer, '#999')
-        layer_name = layer_names.get(layer, f"Layer {layer}")
+        layer_color = get_layer_color(layer)
+        layer_name = get_layer_name(layer)
         series_config.append({
             'name': f'{subclassname} - {layer_name}',
             'type': 'scatter',
@@ -246,7 +266,7 @@ def generate_html(data, output_file):
         }}
         
         .sidebar {{
-            width: 280px;
+            width: 320px;
             flex-shrink: 0;
             background: white;
             border-radius: 15px;
@@ -386,8 +406,9 @@ def generate_html(data, output_file):
         .subclass-item label {{
             flex: 1;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #333;
+            word-break: break-word;
         }}
         
         .subclass-item .point-count {{
@@ -816,8 +837,15 @@ def generate_html(data, output_file):
             }});
             
             // Rebuild series (merge filter and grouping for efficiency)
-            const layerColors = {{1: '#667eea', 2: '#28a745', 3: '#ffc107'}};
-            const layerNames = {{1: 'Layer 1', 2: 'Layer 2', 3: 'Layer 3'}};
+            // Layer color palette for cycling
+            const layerColorPalette = [
+                '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+                '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+                '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+                '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+            ];
+            const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
+            const getLayerName = (layer) => 'Layer ' + layer;
             
             const subclassLayerSeries = {{}};
             const rawData = chartData.rawData;
@@ -851,9 +879,9 @@ def generate_html(data, output_file):
             
             const newSeries = [];
             Object.values(subclassLayerSeries).forEach(group => {{
-                const layerColor = layerColors[group.layer] || '#999';
+                const layerColor = getLayerColor(group.layer);
                 newSeries.push({{
-                    name: group.subclassname + ' - ' + (layerNames[group.layer] || 'Layer ' + group.layer),
+                    name: group.subclassname + ' - ' + getLayerName(group.layer),
                     type: 'scatter',
                     data: group.data,
                     symbolSize: 12,
@@ -1059,12 +1087,19 @@ def generate_html(data, output_file):
                     }}
                     
                     // Multiple points, show list
-                    const layerColors = {{1: '#667eea', 2: '#28a745', 3: '#ffc107'}};
+                    // Layer color palette for cycling
+                    const layerColorPalette = [
+                        '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+                        '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+                        '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+                        '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+                    ];
+                    const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
                     let html = '<div id="tooltip-scroll-container" style="padding: 10px; max-width: 500px; max-height: 60vh; overflow-y: auto;">';
                     html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #667eea;">🔍 Dense Area (' + nearbyPoints.length + ' points)</div>';
                     
                     nearbyPoints.forEach((point, index) => {{
-                        const borderColor = layerColors[point.layer] || '#999';
+                        const borderColor = getLayerColor(point.layer);
                         const isCurrentPoint = (point.x === currentX && point.line === data.line);
                         const bgColor = isCurrentPoint ? '#e7f1ff' : '#f8f9fa';
                         
@@ -1088,11 +1123,11 @@ def generate_html(data, output_file):
                 extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: auto;'
             }},
             grid: {{
-                left: '3%',
+                left: '220px',
                 right: '50px',
                 top: '80px',
                 bottom: '120px',
-                containLabel: true
+                containLabel: false
             }},
             xAxis: {{
                 type: 'time',
@@ -1149,17 +1184,13 @@ def generate_html(data, output_file):
                     type: 'none'
                 }},
                 axisLabel: {{
-                    fontSize: 9,
-                    width: 150,
-                    overflow: 'truncate',
+                    fontSize: 11,
+                    width: 200,
+                    overflow: 'break',
                     formatter: function(value) {{
                         // Extract subclassname after '|' separator
                         const idx = value.indexOf('|');
-                        const displayName = idx >= 0 ? value.substring(idx + 1) : value;
-                        if (displayName.length > 25) {{
-                            return displayName.substring(0, 25) + '...';
-                        }}
-                        return displayName;
+                        return idx >= 0 ? value.substring(idx + 1) : value;
                     }}
                 }},
                 splitLine: {{
@@ -1317,12 +1348,14 @@ def generate_html(data, output_file):
         chartContainer.style.position = 'relative';
         chartContainer.appendChild(svgOverlay);
         
-        // Layer color mapping
-        const layerColors = {{
-            1: '#667eea',
-            2: '#28a745',
-            3: '#ffc107'
-        }};
+        // Layer color palette for cycling
+        const layerColorPalette = [
+            '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+            '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+            '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+            '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+        ];
+        const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
         
         // Clear connection lines
         function clearConnectionLines() {{
@@ -1382,7 +1415,7 @@ def generate_html(data, output_file):
                 // If multiple points, draw connection lines
                 if (layerPoints.length > 1) {{
                     const sameLayerPoints = layerPoints.map(p => ({{ x: p.x, y: p.y }}));
-                    drawConnectionLines(sameLayerPoints, layerColors[hoveredLayer] || '#999');
+                    drawConnectionLines(sameLayerPoints, getLayerColor(hoveredLayer));
                 }}
             }}
         }});

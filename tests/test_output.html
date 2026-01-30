@@ -27,7 +27,7 @@
         }
         
         .sidebar {
-            width: 280px;
+            width: 320px;
             flex-shrink: 0;
             background: white;
             border-radius: 15px;
@@ -167,8 +167,9 @@
         .subclass-item label {
             flex: 1;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.85em;
             color: #333;
+            word-break: break-word;
         }
         
         .subclass-item .point-count {
@@ -597,8 +598,15 @@
             });
             
             // Rebuild series (merge filter and grouping for efficiency)
-            const layerColors = {1: '#667eea', 2: '#28a745', 3: '#ffc107'};
-            const layerNames = {1: 'Layer 1', 2: 'Layer 2', 3: 'Layer 3'};
+            // Layer color palette for cycling
+            const layerColorPalette = [
+                '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+                '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+                '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+                '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+            ];
+            const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
+            const getLayerName = (layer) => 'Layer ' + layer;
             
             const subclassLayerSeries = {};
             const rawData = chartData.rawData;
@@ -632,9 +640,9 @@
             
             const newSeries = [];
             Object.values(subclassLayerSeries).forEach(group => {
-                const layerColor = layerColors[group.layer] || '#999';
+                const layerColor = getLayerColor(group.layer);
                 newSeries.push({
-                    name: group.subclassname + ' - ' + (layerNames[group.layer] || 'Layer ' + group.layer),
+                    name: group.subclassname + ' - ' + getLayerName(group.layer),
                     type: 'scatter',
                     data: group.data,
                     symbolSize: 12,
@@ -840,12 +848,19 @@
                     }
                     
                     // Multiple points, show list
-                    const layerColors = {1: '#667eea', 2: '#28a745', 3: '#ffc107'};
+                    // Layer color palette for cycling
+                    const layerColorPalette = [
+                        '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+                        '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+                        '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+                        '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+                    ];
+                    const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
                     let html = '<div id="tooltip-scroll-container" style="padding: 10px; max-width: 500px; max-height: 60vh; overflow-y: auto;">';
                     html += '<div style="font-weight: bold; font-size: 14px; margin-bottom: 10px; color: #667eea;">🔍 Dense Area (' + nearbyPoints.length + ' points)</div>';
                     
                     nearbyPoints.forEach((point, index) => {
-                        const borderColor = layerColors[point.layer] || '#999';
+                        const borderColor = getLayerColor(point.layer);
                         const isCurrentPoint = (point.x === currentX && point.line === data.line);
                         const bgColor = isCurrentPoint ? '#e7f1ff' : '#f8f9fa';
                         
@@ -869,11 +884,11 @@
                 extraCssText: 'box-shadow: 0 4px 12px rgba(0,0,0,0.15); pointer-events: auto;'
             },
             grid: {
-                left: '3%',
+                left: '220px',
                 right: '50px',
                 top: '80px',
                 bottom: '120px',
-                containLabel: true
+                containLabel: false
             },
             xAxis: {
                 type: 'time',
@@ -930,17 +945,13 @@
                     type: 'none'
                 },
                 axisLabel: {
-                    fontSize: 9,
-                    width: 150,
-                    overflow: 'truncate',
+                    fontSize: 11,
+                    width: 200,
+                    overflow: 'break',
                     formatter: function(value) {
                         // Extract subclassname after '|' separator
                         const idx = value.indexOf('|');
-                        const displayName = idx >= 0 ? value.substring(idx + 1) : value;
-                        if (displayName.length > 25) {
-                            return displayName.substring(0, 25) + '...';
-                        }
-                        return displayName;
+                        return idx >= 0 ? value.substring(idx + 1) : value;
                     }
                 },
                 splitLine: {
@@ -1040,7 +1051,7 @@
                     },
                     saveAsImage: {
                         title: 'Save Image',
-                        name: 'timeline-1769793466',
+                        name: 'timeline-1769794348',
                         pixelRatio: 2
                     }
                 },
@@ -1098,12 +1109,14 @@
         chartContainer.style.position = 'relative';
         chartContainer.appendChild(svgOverlay);
         
-        // Layer color mapping
-        const layerColors = {
-            1: '#667eea',
-            2: '#28a745',
-            3: '#ffc107'
-        };
+        // Layer color palette for cycling
+        const layerColorPalette = [
+            '#667eea', '#28a745', '#ffc107', '#dc3545', '#17a2b8',
+            '#fd7e14', '#6f42c1', '#20c997', '#e83e8c', '#007bff',
+            '#6610f2', '#795548', '#607d8b', '#4caf50', '#ff5722',
+            '#9c27b0', '#00bcd4', '#8bc34a', '#ff9800', '#3f51b5'
+        ];
+        const getLayerColor = (layer) => layerColorPalette[(layer - 1) % layerColorPalette.length];
         
         // Clear connection lines
         function clearConnectionLines() {
@@ -1163,7 +1176,7 @@
                 // If multiple points, draw connection lines
                 if (layerPoints.length > 1) {
                     const sameLayerPoints = layerPoints.map(p => ({ x: p.x, y: p.y }));
-                    drawConnectionLines(sameLayerPoints, layerColors[hoveredLayer] || '#999');
+                    drawConnectionLines(sameLayerPoints, getLayerColor(hoveredLayer));
                 }
             }
         });
@@ -1197,7 +1210,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'timeline-data-1769793466.json';
+            a.download = 'timeline-data-1769794348.json';
             a.click();
             URL.revokeObjectURL(url);
         });
