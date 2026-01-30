@@ -648,8 +648,6 @@ def generate_html(data, output_file):
                         <span class="toolbar-label">✂️ Selection:</span>
                         <button class="toolbar-btn" id="lasso-select">⭕ Draw Selection</button>
                         <button class="toolbar-btn danger" id="clear-selection" style="display:none;">✖ Clear Selection</button>
-                    </div>
-                    <div class="toolbar-group">
                         <button class="toolbar-btn" id="reset-view">🔄 Reset View</button>
                         <button class="toolbar-btn" id="export-data">💾 Export Data</button>
                     </div>
@@ -1005,18 +1003,18 @@ def generate_html(data, output_file):
                     const tooltipWidth = size.contentSize[0];
                     const tooltipHeight = size.contentSize[1];
                     
-                    // Default position: bottom right of mouse
-                    let x = point[0] + 15;
-                    let y = point[1] + 10;
+                    // Default position: very close to mouse cursor
+                    let x = point[0] + 5;
+                    let y = point[1] + 5;
                     
                     // Right boundary check: if exceeds right, show on left side of mouse
                     if (x + tooltipWidth > viewWidth - 10) {{
-                        x = point[0] - tooltipWidth - 15;
+                        x = point[0] - tooltipWidth - 5;
                     }}
                     
                     // Bottom boundary check: if exceeds bottom, show above mouse
                     if (y + tooltipHeight > viewHeight - 10) {{
-                        y = point[1] - tooltipHeight - 10;
+                        y = point[1] - tooltipHeight - 5;
                     }}
                     
                     // Ensure not exceeding left and top boundaries
@@ -1069,17 +1067,10 @@ def generate_html(data, output_file):
                     
                     // If only 1 point, show single point details
                     if (nearbyPoints.length <= 1) {{
-                        let html = '<div style="padding: 10px; max-width: 450px;">';
-                        html += '<strong style="color: ' + params.color + '; font-size: 14px;">📌 ' + data.cursor + '</strong><br/>';
-                        html += '<div style="height: 8px;"></div>';
-                        html += '<div style="font-size: 12px;">';
-                        html += '<strong>Time:</strong> ' + data.timeStr + '<br/>';
-                        html += '<strong>Module:</strong> ' + data.classname + '<br/>';
-                        html += '<strong>Subclass:</strong> ' + data.subclassname + '<br/>';
-                        html += '<strong>Line:</strong> ' + data.line + ' | ';
-                        html += '<strong>Layer:</strong> Layer ' + data.layer + '<br/>';
-                        html += '</div>';
-                        html += '<div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">';
+                        let html = '<div style="padding: 8px; max-width: 400px;">';
+                        html += '<strong style="color: ' + params.color + '; font-size: 13px;">📌 ' + data.cursor + '</strong>';
+                        html += '<span style="font-size: 11px; color: #666; margin-left: 8px;">Line ' + data.line + ' | Layer ' + data.layer + '</span>';
+                        html += '<div style="margin-top: 6px; padding: 6px; background: #f8f9fa; border-radius: 4px; font-size: 11px; word-wrap: break-word; white-space: pre-wrap;">';
                         html += data.msg;
                         html += '</div>';
                         html += '</div>';
