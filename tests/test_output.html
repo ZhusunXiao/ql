@@ -90,17 +90,6 @@
             background: #c82333;
         }
         
-        .btn-expand-all, .btn-collapse-all {
-            background: #6c757d;
-            color: white;
-            flex: 0 0 auto;
-            padding: 8px 12px;
-        }
-        
-        .btn-expand-all:hover, .btn-collapse-all:hover {
-            background: #5a6268;
-        }
-        
         .sidebar-content {
             flex: 1;
             overflow-y: auto;
@@ -135,6 +124,20 @@
         
         .class-header.collapsed .toggle-icon {
             transform: rotate(-90deg);
+        }
+        
+        .class-visibility-toggle {
+            padding: 2px 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .class-visibility-toggle:hover {
+            background: rgba(255,255,255,0.5);
+            transform: scale(1.1);
         }
         
         .class-color-bar {
@@ -392,8 +395,6 @@
             <div class="sidebar-actions">
                 <button class="btn-select-all" id="select-all">✓ Select All</button>
                 <button class="btn-select-none" id="select-none">✗ Select None</button>
-                <button class="btn-expand-all" id="expand-all" title="Expand all classes">▼</button>
-                <button class="btn-collapse-all" id="collapse-all" title="Collapse all classes">▲</button>
             </div>
             <div class="sidebar-content" id="sidebar-content">
                 <!-- Dynamic content -->
@@ -414,6 +415,7 @@
                     <div class="toolbar-group">
                         <span class="toolbar-label">📌 Annotations (double-click):</span>
                         <button class="toolbar-btn active" id="toggle-annotations">👁 Hide Annotations</button>
+                        <button class="toolbar-btn" id="add-vline">📍 Add VLine</button>
                         <button class="toolbar-btn" id="export-annotations">💾 Export</button>
                         <button class="toolbar-btn" id="import-annotations">📂 Import</button>
                     </div>
@@ -447,11 +449,43 @@
                 <span class="color-preset" data-color="#17a2b8" style="display:inline-block;width:20px;height:20px;background:#17a2b8;border-radius:3px;cursor:pointer;vertical-align:middle;"></span>
             </span>
         </div>
+        <div style="margin-bottom: 8px;">
+            <span style="font-size: 12px; color: #666; margin-right: 10px;">Quick Fill:</span>
+            <button type="button" id="fill-cursor" style="padding: 4px 10px; font-size: 11px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;" title="Fill with cursor name">🎯 Cursor</button>
+            <button type="button" id="fill-msg" style="padding: 4px 10px; font-size: 11px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Fill with message">💬 Msg</button>
+        </div>
         <textarea id="annotation-text" placeholder="Enter annotation content..."></textarea>
         <div class="btn-group">
             <button class="btn-delete" id="annotation-delete" style="display:none;">Delete</button>
             <button class="btn-cancel" id="annotation-cancel">Cancel</button>
             <button class="btn-save" id="annotation-save">Save</button>
+        </div>
+    </div>
+    
+    <!-- Vertical Line Panel -->
+    <div class="overlay" id="vline-overlay"></div>
+    <div class="annotation-panel" id="vline-panel">
+        <h3>📍 Add Vertical Line</h3>
+        <div id="vline-time-info" style="margin-bottom: 10px; font-size: 12px; color: #666;"></div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666; margin-right: 10px;">Line Color:</label>
+            <input type="color" id="vline-color" value="#ff6b6b" style="width: 60px; height: 28px; border: none; cursor: pointer;">
+            <span style="margin-left: 10px;">
+                <span class="color-preset vline-color-preset" data-color="#ff6b6b" style="display:inline-block;width:20px;height:20px;background:#ff6b6b;border-radius:3px;cursor:pointer;margin-right:5px;vertical-align:middle;"></span>
+                <span class="color-preset vline-color-preset" data-color="#4ecdc4" style="display:inline-block;width:20px;height:20px;background:#4ecdc4;border-radius:3px;cursor:pointer;margin-right:5px;vertical-align:middle;"></span>
+                <span class="color-preset vline-color-preset" data-color="#ffe66d" style="display:inline-block;width:20px;height:20px;background:#ffe66d;border-radius:3px;cursor:pointer;margin-right:5px;vertical-align:middle;"></span>
+                <span class="color-preset vline-color-preset" data-color="#95e1d3" style="display:inline-block;width:20px;height:20px;background:#95e1d3;border-radius:3px;cursor:pointer;margin-right:5px;vertical-align:middle;"></span>
+                <span class="color-preset vline-color-preset" data-color="#a29bfe" style="display:inline-block;width:20px;height:20px;background:#a29bfe;border-radius:3px;cursor:pointer;vertical-align:middle;"></span>
+            </span>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px; color: #666;">Label (optional, defaults to time):</label>
+        </div>
+        <input type="text" id="vline-text" placeholder="Leave empty for time label..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 10px; box-sizing: border-box;">
+        <div class="btn-group">
+            <button class="btn-delete" id="vline-delete" style="display:none;">Delete</button>
+            <button class="btn-cancel" id="vline-cancel">Cancel</button>
+            <button class="btn-save" id="vline-save">Save</button>
         </div>
     </div>
     
@@ -544,10 +578,16 @@
                 const bgColor = classColors[classIndex % classColors.length];
                 const pointCount = pointCountByClass[cls.classname] || 0;
                 
+                // Check if all subclasses are visible
+                const allVisible = cls.subclasses.every(sub => visibleSubclasses.has(sub.category_label));
+                const toggleIcon = allVisible ? '✓' : '✗';
+                const toggleTitle = allVisible ? 'Hide all subclasses on chart' : 'Show all subclasses on chart';
+                
                 html += `<div class="class-group">`;
                 html += `<div class="class-header" style="background: ${bgColor};" data-class-index="${classIndex}">`;
                 html += `<span class="toggle-icon">▼</span>`;
                 html += `<span style="flex:1;">${cls.classname}</span>`;
+                html += `<span class="class-visibility-toggle" data-class-index="${classIndex}" title="${toggleTitle}">${toggleIcon}</span>`;
                 html += `<span class="point-count">${pointCount}</span>`;
                 html += `</div>`;
                 html += `<div class="subclass-list" data-class-index="${classIndex}">`;
@@ -589,7 +629,45 @@
                         visibleSubclasses.delete(category);
                     }
                     updateChart();
+                    // Update toggle icon for this class
+                    updateClassToggleIcons();
                 });
+            });
+            
+            // Bind class visibility toggle events
+            document.querySelectorAll('.class-visibility-toggle').forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.stopPropagation(); // Prevent triggering class collapse
+                    const classIndex = parseInt(this.dataset.classIndex);
+                    const cls = classHierarchy[classIndex];
+                    const allVisible = cls.subclasses.every(sub => visibleSubclasses.has(sub.category_label));
+                    
+                    // Toggle all subclasses visibility
+                    cls.subclasses.forEach(sub => {
+                        const checkbox = document.querySelector(`input[data-category="${sub.category_label}"]`);
+                        if (allVisible) {
+                            visibleSubclasses.delete(sub.category_label);
+                            if (checkbox) checkbox.checked = false;
+                        } else {
+                            visibleSubclasses.add(sub.category_label);
+                            if (checkbox) checkbox.checked = true;
+                        }
+                    });
+                    
+                    updateChart();
+                    updateClassToggleIcons();
+                });
+            });
+        }
+        
+        // Update class toggle icons based on visibility state
+        function updateClassToggleIcons() {
+            document.querySelectorAll('.class-visibility-toggle').forEach(toggle => {
+                const classIndex = parseInt(toggle.dataset.classIndex);
+                const cls = classHierarchy[classIndex];
+                const allVisible = cls.subclasses.every(sub => visibleSubclasses.has(sub.category_label));
+                toggle.textContent = allVisible ? '✓' : '✗';
+                toggle.title = allVisible ? 'Hide all subclasses on chart' : 'Show all subclasses on chart';
             });
         }
         
@@ -747,26 +825,6 @@
             });
             visibleSubclasses.clear();
             updateChart();
-        });
-        
-        // Expand all classes
-        document.getElementById('expand-all').addEventListener('click', function() {
-            document.querySelectorAll('.subclass-list').forEach(list => {
-                list.classList.remove('collapsed');
-            });
-            document.querySelectorAll('.class-header').forEach(header => {
-                header.classList.remove('collapsed');
-            });
-        });
-        
-        // Collapse all classes
-        document.getElementById('collapse-all').addEventListener('click', function() {
-            document.querySelectorAll('.subclass-list').forEach(list => {
-                list.classList.add('collapsed');
-            });
-            document.querySelectorAll('.class-header').forEach(header => {
-                header.classList.add('collapsed');
-            });
         });
         
         // Initialize sidebar
@@ -1074,7 +1132,7 @@
                     },
                     saveAsImage: {
                         title: 'Save Image',
-                        name: 'timeline-1769800048',
+                        name: 'timeline-1769801308',
                         pixelRatio: 2
                     }
                 },
@@ -1233,7 +1291,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'timeline-data-1769800048.json';
+            a.download = 'timeline-data-1769801308.json';
             a.click();
             URL.revokeObjectURL(url);
         });
@@ -1350,6 +1408,35 @@
         let showAnnotations = true;
         let currentAnnotationPoint = null;
         
+        // ========== Vertical Line Feature ==========
+        const vlineStorageKey = 'timeline-vlines-test_output';
+        let vlines = {};
+        let vlineMode = false;
+        let currentVlineTime = null;
+        let currentVlineKey = null;
+        
+        // Load vertical lines from localStorage
+        function loadVlines() {
+            try {
+                const stored = localStorage.getItem(vlineStorageKey);
+                if (stored) {
+                    vlines = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.warn('Failed to load vlines:', e);
+                vlines = {};
+            }
+        }
+        
+        // Save vertical lines to localStorage
+        function saveVlines() {
+            try {
+                localStorage.setItem(vlineStorageKey, JSON.stringify(vlines));
+            } catch (e) {
+                console.warn('Failed to save vlines:', e);
+            }
+        }
+        
         // Load annotations from localStorage
         function loadAnnotations() {
             try {
@@ -1377,74 +1464,128 @@
             return point.classname + '|' + point.subclassname + '|' + point.value[0] + '|' + point.layer;
         }
         
-        // Show annotations on chart
+        // Show annotations on chart (includes both point annotations and vertical lines)
         function renderAnnotations() {
-            if (!showAnnotations || Object.keys(annotations).length === 0) {
-                // Hide all annotations - use $action to ensure complete clear
-                myChart.setOption({
-                    graphic: {
-                        elements: []
+            const elements = [];
+            
+            // Render point annotations
+            if (showAnnotations && Object.keys(annotations).length > 0) {
+                Object.keys(annotations).forEach((key, index) => {
+                    const ann = annotations[key];
+                    
+                    // Check if annotation category is visible
+                    if (!visibleSubclasses.has(ann.yCategory)) {
+                        return; // Skip annotations for hidden categories
                     }
-                }, {replaceMerge: ['graphic']});
-                return;
+                    
+                    const pixel = myChart.convertToPixel({xAxisIndex: 0, yAxisIndex: 0}, [ann.x, ann.yCategory]);
+                    
+                    if (pixel && !isNaN(pixel[0]) && !isNaN(pixel[1])) {
+                        const text = ann.text.length > 15 ? ann.text.substring(0, 15) + '…' : ann.text;
+                        const color = ann.color || '#667eea';
+                        const textWidth = Math.max(text.length * 7 + 16, 40);
+                        
+                        // Label background (directly above point)
+                        elements.push({
+                            type: 'rect',
+                            shape: {
+                                x: pixel[0] - textWidth / 2,
+                                y: pixel[1] - 28,
+                                width: textWidth,
+                                height: 20,
+                                r: 3
+                            },
+                            style: {
+                                fill: color,
+                                shadowBlur: 3,
+                                shadowOffsetY: 1,
+                                shadowColor: 'rgba(0,0,0,0.15)'
+                            },
+                            z: 100,
+                            silent: false,
+                            onclick: function() {
+                                openAnnotationPanel(ann.pointData, true);
+                            }
+                        });
+                        
+                        // Label text
+                        elements.push({
+                            type: 'text',
+                            style: {
+                                text: text,
+                                x: pixel[0],
+                                y: pixel[1] - 18,
+                                textAlign: 'center',
+                                textVerticalAlign: 'middle',
+                                fill: '#fff',
+                                fontSize: 11
+                            },
+                            z: 101,
+                            silent: true
+                        });
+                    }
+                });
             }
             
-            const elements = [];
-            Object.keys(annotations).forEach((key, index) => {
-                const ann = annotations[key];
-                
-                // Check if annotation category is visible
-                if (!visibleSubclasses.has(ann.yCategory)) {
-                    return; // Skip annotations for hidden categories
+            // Render vertical lines
+            if (showAnnotations && Object.keys(vlines).length > 0) {
+                try {
+                    const gridModel = myChart.getModel().getComponent('grid');
+                    if (gridModel && gridModel.coordinateSystem) {
+                        const gridInfo = gridModel.coordinateSystem.getRect();
+                        
+                        Object.entries(vlines).forEach(([key, vline]) => {
+                            const pixel = myChart.convertToPixel({xAxisIndex: 0}, vline.time);
+                            
+                            if (pixel === undefined || isNaN(pixel)) return;
+                            
+                            const labelText = vline.text || formatTime(vline.time);
+                            const color = vline.color || '#ff6b6b';
+                            
+                            // Vertical line
+                            elements.push({
+                                type: 'line',
+                                z: 50,
+                                shape: {
+                                    x1: pixel,
+                                    y1: gridInfo.y,
+                                    x2: pixel,
+                                    y2: gridInfo.y + gridInfo.height
+                                },
+                                style: {
+                                    stroke: color,
+                                    lineWidth: 2,
+                                    lineDash: [5, 3]
+                                }
+                            });
+                            
+                            // Label at top
+                            elements.push({
+                                type: 'text',
+                                z: 51,
+                                x: pixel,
+                                y: gridInfo.y - 5,
+                                style: {
+                                    text: labelText,
+                                    fill: color,
+                                    fontSize: 11,
+                                    textAlign: 'center',
+                                    textVerticalAlign: 'bottom',
+                                    backgroundColor: 'rgba(255,255,255,0.9)',
+                                    padding: [2, 4],
+                                    borderRadius: 2
+                                },
+                                onclick: function() {
+                                    openVlinePanel(vline.time, key);
+                                },
+                                cursor: 'pointer'
+                            });
+                        });
+                    }
+                } catch (e) {
+                    console.warn('Failed to render vlines:', e);
                 }
-                
-                const pixel = myChart.convertToPixel({xAxisIndex: 0, yAxisIndex: 0}, [ann.x, ann.yCategory]);
-                
-                if (pixel && !isNaN(pixel[0]) && !isNaN(pixel[1])) {
-                    const text = ann.text.length > 15 ? ann.text.substring(0, 15) + '…' : ann.text;
-                    const color = ann.color || '#667eea';
-                    const textWidth = Math.max(text.length * 7 + 16, 40);
-                    
-                    // Label background (directly above point)
-                    elements.push({
-                        type: 'rect',
-                        shape: {
-                            x: pixel[0] - textWidth / 2,
-                            y: pixel[1] - 28,
-                            width: textWidth,
-                            height: 20,
-                            r: 3
-                        },
-                        style: {
-                            fill: color,
-                            shadowBlur: 3,
-                            shadowOffsetY: 1,
-                            shadowColor: 'rgba(0,0,0,0.15)'
-                        },
-                        z: 100,
-                        silent: false,
-                        onclick: function() {
-                            openAnnotationPanel(ann.pointData, true);
-                        }
-                    });
-                    
-                    // Label text
-                    elements.push({
-                        type: 'text',
-                        style: {
-                            text: text,
-                            x: pixel[0],
-                            y: pixel[1] - 18,
-                            textAlign: 'center',
-                            textVerticalAlign: 'middle',
-                            fill: '#fff',
-                            fontSize: 11
-                        },
-                        z: 101,
-                        silent: true
-                    });
-                }
-            });
+            }
             
             myChart.setOption({
                 graphic: {
@@ -1459,12 +1600,16 @@
             const key = getAnnotationKey(point);
             const existingAnnotation = annotations[key];
             
+            // Get point's layer color
+            const pointColor = getLayerColor(point.layer);
+            
             document.getElementById('annotation-point-info').innerHTML = 
                 '<strong>' + point.classname + '</strong> / ' + point.subclassname + '<br>' +
-                '<span style="color:#667eea">' + formatTime(point.value[0]) + '</span> - Layer ' + point.layer;
+                '<span style="color:' + pointColor + '">' + formatTime(point.value[0]) + '</span> - Layer ' + point.layer;
             
             document.getElementById('annotation-text').value = existingAnnotation ? existingAnnotation.text : '';
-            document.getElementById('annotation-color').value = existingAnnotation ? (existingAnnotation.color || '#667eea') : '#667eea';
+            // Use existing annotation color, or point's layer color as default
+            document.getElementById('annotation-color').value = existingAnnotation ? (existingAnnotation.color || pointColor) : pointColor;
             document.getElementById('annotation-delete').style.display = existingAnnotation ? 'inline-block' : 'none';
             
             document.getElementById('overlay').style.display = 'block';
@@ -1509,6 +1654,50 @@
         document.getElementById('annotation-cancel').addEventListener('click', closeAnnotationPanel);
         document.getElementById('overlay').addEventListener('click', closeAnnotationPanel);
         
+        // Quick fill cursor and auto-save
+        document.getElementById('fill-cursor').addEventListener('click', function() {
+            if (currentAnnotationPoint) {
+                const text = currentAnnotationPoint.cursor || '';
+                if (text) {
+                    const color = document.getElementById('annotation-color').value;
+                    const key = getAnnotationKey(currentAnnotationPoint);
+                    annotations[key] = {
+                        text: text,
+                        color: color,
+                        x: currentAnnotationPoint.value[0],
+                        yCategory: chartData.yAxisData[currentAnnotationPoint.value[1]],
+                        pointData: currentAnnotationPoint,
+                        createdAt: new Date().toISOString()
+                    };
+                    saveAnnotations();
+                    renderAnnotations();
+                    closeAnnotationPanel();
+                }
+            }
+        });
+        
+        // Quick fill message and auto-save
+        document.getElementById('fill-msg').addEventListener('click', function() {
+            if (currentAnnotationPoint) {
+                const text = currentAnnotationPoint.msg || '';
+                if (text) {
+                    const color = document.getElementById('annotation-color').value;
+                    const key = getAnnotationKey(currentAnnotationPoint);
+                    annotations[key] = {
+                        text: text,
+                        color: color,
+                        x: currentAnnotationPoint.value[0],
+                        yCategory: chartData.yAxisData[currentAnnotationPoint.value[1]],
+                        pointData: currentAnnotationPoint,
+                        createdAt: new Date().toISOString()
+                    };
+                    saveAnnotations();
+                    renderAnnotations();
+                    closeAnnotationPanel();
+                }
+            }
+        });
+        
         // Delete annotation
         document.getElementById('annotation-delete').addEventListener('click', function() {
             if (!currentAnnotationPoint) return;
@@ -1533,7 +1722,8 @@
             const exportData = {
                 fileName: 'test_output',
                 exportTime: new Date().toISOString(),
-                annotations: annotations
+                annotations: annotations,
+                vlines: vlines
             };
             const dataStr = JSON.stringify(exportData, null, 2);
             const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1558,13 +1748,22 @@
             reader.onload = function(event) {
                 try {
                     const imported = JSON.parse(event.target.result);
+                    let importCount = 0;
                     if (imported.annotations) {
                         // Merge imported annotations
                         Object.assign(annotations, imported.annotations);
                         saveAnnotations();
                         renderAnnotations();
-                        alert('✅ Successfully imported ' + Object.keys(imported.annotations).length + ' annotations');
+                        importCount += Object.keys(imported.annotations).length;
                     }
+                    if (imported.vlines) {
+                        // Merge imported vlines
+                        Object.assign(vlines, imported.vlines);
+                        saveVlines();
+                        renderAnnotations();
+                        importCount += Object.keys(imported.vlines).length;
+                    }
+                    alert('✅ Successfully imported ' + importCount + ' items');
                 } catch (err) {
                     alert('❌ Import failed: ' + err.message);
                 }
@@ -1604,6 +1803,117 @@
         // Load and render annotations
         loadAnnotations();
         setTimeout(renderAnnotations, 200);
+        
+        // Load vertical lines (rendered together with annotations)
+        loadVlines();
+        
+        // Open vline panel
+        function openVlinePanel(time, existingKey) {
+            currentVlineTime = time;
+            currentVlineKey = existingKey;
+            
+            const existingVline = existingKey ? vlines[existingKey] : null;
+            const displayTime = (typeof time === 'number' && !isNaN(time)) ? formatTime(time) : 'Unknown';
+            
+            document.getElementById('vline-time-info').innerHTML = 
+                '<strong>Time:</strong> <span style="color:#ff6b6b">' + displayTime + '</span>';
+            
+            document.getElementById('vline-text').value = existingVline ? (existingVline.text || '') : '';
+            document.getElementById('vline-color').value = existingVline ? (existingVline.color || '#ff6b6b') : '#ff6b6b';
+            document.getElementById('vline-delete').style.display = existingVline ? 'inline-block' : 'none';
+            
+            document.getElementById('vline-overlay').style.display = 'block';
+            document.getElementById('vline-panel').style.display = 'block';
+            document.getElementById('vline-text').focus();
+        }
+        
+        // Close vline panel
+        function closeVlinePanel() {
+            document.getElementById('vline-overlay').style.display = 'none';
+            document.getElementById('vline-panel').style.display = 'none';
+            currentVlineTime = null;
+            currentVlineKey = null;
+        }
+        
+        // VLine mode toggle
+        document.getElementById('add-vline').addEventListener('click', function() {
+            vlineMode = !vlineMode;
+            this.classList.toggle('active', vlineMode);
+            this.textContent = vlineMode ? '📍 Click Chart...' : '📍 Add VLine';
+            if (vlineMode) {
+                chartDom.style.cursor = 'crosshair';
+            } else {
+                chartDom.style.cursor = 'default';
+            }
+        });
+        
+        // Chart click for vline
+        myChart.getZr().on('click', function(params) {
+            if (!vlineMode) return;
+            
+            const pointInPixel = [params.offsetX, params.offsetY];
+            if (myChart.containPixel('grid', pointInPixel)) {
+                // Convert pixel to data coordinates
+                const dataPoint = myChart.convertFromPixel({xAxisIndex: 0, yAxisIndex: 0}, pointInPixel);
+                const xValue = dataPoint[0];  // X-axis time value
+                
+                // Validate xValue is a valid number
+                if (typeof xValue !== 'number' || isNaN(xValue)) {
+                    console.warn('Invalid click time:', xValue, dataPoint);
+                    return;
+                }
+                
+                // Exit vline mode
+                vlineMode = false;
+                document.getElementById('add-vline').classList.remove('active');
+                document.getElementById('add-vline').textContent = '📍 Add VLine';
+                chartDom.style.cursor = 'default';
+                
+                // Open panel
+                openVlinePanel(xValue, null);
+            }
+        });
+        
+        // Save vline
+        document.getElementById('vline-save').addEventListener('click', function() {
+            if (currentVlineTime === null) return;
+            
+            const text = document.getElementById('vline-text').value.trim();
+            const color = document.getElementById('vline-color').value;
+            const key = currentVlineKey || ('vline_' + currentVlineTime);
+            
+            vlines[key] = {
+                time: currentVlineTime,
+                text: text || null,  // null means use default time label
+                color: color,
+                createdAt: new Date().toISOString()
+            };
+            
+            saveVlines();
+            renderAnnotations();
+            closeVlinePanel();
+        });
+        
+        // Cancel vline
+        document.getElementById('vline-cancel').addEventListener('click', closeVlinePanel);
+        document.getElementById('vline-overlay').addEventListener('click', closeVlinePanel);
+        
+        // Delete vline
+        document.getElementById('vline-delete').addEventListener('click', function() {
+            if (currentVlineKey && vlines[currentVlineKey]) {
+                delete vlines[currentVlineKey];
+                saveVlines();
+                renderAnnotations();
+            }
+            closeVlinePanel();
+        });
+        
+        // VLine color presets
+        document.querySelectorAll('.vline-color-preset').forEach(preset => {
+            preset.addEventListener('click', function() {
+                document.getElementById('vline-color').value = this.dataset.color;
+            });
+        });
         
         // ========== Lasso Selection Feature ==========
         let isLassoMode = false;
