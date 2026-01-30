@@ -7,7 +7,7 @@ setlocal enabledelayedexpansion
 :: Examples:
 ::   ql aaa.log
 ::   ql aaa.log audio.py
-::   ql log\1.log configs\*.py
+::   ql log\1.log qlcfg\*.py
 
 set "SCRIPT_DIR=%~dp0"
 cd /d "%SCRIPT_DIR%"
@@ -17,7 +17,7 @@ if "%~1"=="" (
     echo Usage: ql ^<log_file^> [config_pattern]
     echo.
     echo Examples:
-    echo   ql aaa.log              Use configs\*.py to analyze log
+    echo   ql aaa.log              Use qlcfg\*.py to analyze log
     echo   ql aaa.log audio.py     Use only audio.py config
     echo   ql log\1.log            Analyze log in log directory
     exit /b 1
@@ -26,9 +26,26 @@ if "%~1"=="" (
 set "LOG_FILE=%~1"
 set "CONFIG_PATTERN=%~2"
 
-:: Use default configs\*.py if not specified
+:: Determine qlcfg folder location
+:: First check parent directory (ql's sibling folder), then check inside ql folder
+set "QLCFG_DIR="
+if exist "%SCRIPT_DIR%..\qlcfg\" (
+    set "QLCFG_DIR=%SCRIPT_DIR%..\qlcfg"
+) else if exist "%SCRIPT_DIR%qlcfg\" (
+    set "QLCFG_DIR=%SCRIPT_DIR%qlcfg"
+) else if exist "%SCRIPT_DIR%configs\" (
+    :: Fallback to legacy configs folder
+    set "QLCFG_DIR=%SCRIPT_DIR%configs"
+)
+
+:: Use default qlcfg\*.py if not specified
 if "%CONFIG_PATTERN%"=="" (
-    set "CONFIG_PATTERN=configs\*.py"
+    if defined QLCFG_DIR (
+        set "CONFIG_PATTERN=!QLCFG_DIR!\*.py"
+    ) else (
+        echo [ERROR] No qlcfg or configs folder found
+        exit /b 1
+    )
 )
 
 :: Get log file name without path and extension

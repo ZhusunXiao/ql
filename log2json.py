@@ -145,6 +145,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
     Config file should contain:
     - classname: str
     - subclasses: list
+    - process_json (optional): function(result_json) -> result_json
     
     Args:
         config_path: Path to config file
@@ -170,6 +171,7 @@ def load_config(config_path: str) -> Dict[str, Any]:
         return {
             'classname': getattr(module, 'classname', 'Unnamed'),
             'subclasses': getattr(module, 'subclasses', []),
+            'process_json': getattr(module, 'process_json', None),
             '_module': module
         }
     except Exception as e:
@@ -396,11 +398,16 @@ def main():
     # Process each config
     all_data = []
     total_points = 0
-    
+    process_json_callbacks = []
+
     for config_file in config_files:
         print(f"🔍 Processing: {config_file}")
         config = load_config(config_file)
         class_data = process_config(config, log_file)
+        
+        # Collect process_json callbacks
+        if config.get('process_json'):
+            process_json_callbacks.append((config_file, config['process_json']))
         
         class_points = sum(len(sub['points']) for sub in class_data['subclasses'])
         print(f"   ├─ Class: {class_data['classname']}")
@@ -415,6 +422,14 @@ def main():
     
     # Merge and write results
     result = merge_results(all_data, log_file, name)
+    
+    # Call process_json callbacks from each config
+    for config_file, process_fn in process_json_callbacks:
+        try:
+            print(f"🔧 Running process_json from: {config_file}")
+            result = process_fn(result)
+        except Exception as e:
+            print(f"⚠️ process_json failed in {config_file}: {e}")
     
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=2)
