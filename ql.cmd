@@ -9,8 +9,9 @@ setlocal enabledelayedexpansion
 ::   ql aaa.log audio.py
 ::   ql log\1.log qlcfg\*.py
 
+:: Save original working directory
+set "ORIG_DIR=%CD%"
 set "SCRIPT_DIR=%~dp0"
-cd /d "%SCRIPT_DIR%"
 
 :: Check arguments
 if "%~1"=="" (
@@ -23,7 +24,8 @@ if "%~1"=="" (
     exit /b 1
 )
 
-set "LOG_FILE=%~1"
+:: Get absolute path of log file (resolve relative to original directory)
+set "LOG_FILE=%~f1"
 set "CONFIG_PATTERN=%~2"
 
 :: Determine qlcfg folder location
@@ -48,15 +50,17 @@ if "%CONFIG_PATTERN%"=="" (
     )
 )
 
-:: Get log file name without path and extension
+:: Get log file name without path and extension, replace dots with underscores
 set "LOG_NAME=%~n1"
+set "LOG_NAME=!LOG_NAME:.=_!"
 
-:: Output file paths
-set "JSON_FILE=output\%LOG_NAME%.json"
-set "HTML_FILE=output\%LOG_NAME%.html"
+:: Output file paths (in original working directory)
+set "OUTPUT_DIR=%ORIG_DIR%\output"
+set "JSON_FILE=%OUTPUT_DIR%\%LOG_NAME%.json"
+set "HTML_FILE=%OUTPUT_DIR%\%LOG_NAME%.html"
 
 :: Ensure output directory exists
-if not exist output mkdir output
+if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
 
 echo.
 echo ========================================

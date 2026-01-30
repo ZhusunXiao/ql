@@ -329,6 +329,17 @@ def generate_html(data, output_file):
             background: #c82333;
         }}
         
+        .btn-expand-all, .btn-collapse-all {{
+            background: #6c757d;
+            color: white;
+            flex: 0 0 auto;
+            padding: 8px 12px;
+        }}
+        
+        .btn-expand-all:hover, .btn-collapse-all:hover {{
+            background: #5a6268;
+        }}
+        
         .sidebar-content {{
             flex: 1;
             overflow-y: auto;
@@ -374,8 +385,7 @@ def generate_html(data, output_file):
         }}
         
         .subclass-list {{
-            max-height: 500px;
-            overflow: hidden;
+            overflow-y: auto;
             transition: max-height 0.3s ease-out;
         }}
         
@@ -621,6 +631,8 @@ def generate_html(data, output_file):
             <div class="sidebar-actions">
                 <button class="btn-select-all" id="select-all">✓ Select All</button>
                 <button class="btn-select-none" id="select-none">✗ Select None</button>
+                <button class="btn-expand-all" id="expand-all" title="Expand all classes">▼</button>
+                <button class="btn-collapse-all" id="collapse-all" title="Collapse all classes">▲</button>
             </div>
             <div class="sidebar-content" id="sidebar-content">
                 <!-- Dynamic content -->
@@ -640,7 +652,7 @@ def generate_html(data, output_file):
                     </div>
                     <div class="toolbar-group">
                         <span class="toolbar-label">📌 Annotations (double-click):</span>
-                        <button class="toolbar-btn" id="toggle-annotations">👁 Show Annotations</button>
+                        <button class="toolbar-btn active" id="toggle-annotations">👁 Hide Annotations</button>
                         <button class="toolbar-btn" id="export-annotations">💾 Export</button>
                         <button class="toolbar-btn" id="import-annotations">📂 Import</button>
                     </div>
@@ -974,6 +986,26 @@ def generate_html(data, output_file):
             }});
             visibleSubclasses.clear();
             updateChart();
+        }});
+        
+        // Expand all classes
+        document.getElementById('expand-all').addEventListener('click', function() {{
+            document.querySelectorAll('.subclass-list').forEach(list => {{
+                list.classList.remove('collapsed');
+            }});
+            document.querySelectorAll('.class-header').forEach(header => {{
+                header.classList.remove('collapsed');
+            }});
+        }});
+        
+        // Collapse all classes
+        document.getElementById('collapse-all').addEventListener('click', function() {{
+            document.querySelectorAll('.subclass-list').forEach(list => {{
+                list.classList.add('collapsed');
+            }});
+            document.querySelectorAll('.class-header').forEach(header => {{
+                header.classList.add('collapsed');
+            }});
         }});
         
         // Initialize sidebar
