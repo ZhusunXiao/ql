@@ -65,7 +65,9 @@ def generate_html(data, output_file):
         for subclass in subclasses:
             total_subclasses += 1
             subclassname = subclass.get("subclassname", "Unnamed")
-            category_label = f"{classname} > {subclassname}"
+            # Use classname|subclassname as unique category_label for internal matching
+            # Y-axis formatter will extract and display only subclassname part
+            category_label = f"{classname}|{subclassname}"
             
             if category_label not in category_map:
                 category_index = len(y_axis_categories)
@@ -883,12 +885,14 @@ def generate_html(data, output_file):
                     if (visibleSubclasses.has(subs[j].category_label)) visibleCount++;
                 }}
                 if (visibleCount > 0) {{
+                    // Use alternating opacity to distinguish adjacent class regions
+                    const opacity = (clsIdx % 2 === 0) ? '20' : '40';
                     markAreaData.push([
                         {{
-                            yAxis: currentIndex - 0.5,
-                            itemStyle: {{ color: classColors[clsIdx % classColors.length] + '80' }}
+                            yAxis: currentIndex,
+                            itemStyle: {{ color: classColors[clsIdx % classColors.length] + opacity }}
                         }},
-                        {{ yAxis: currentIndex + visibleCount - 0.5 }}
+                        {{ yAxis: currentIndex + visibleCount - 1 }}
                     ]);
                     currentIndex += visibleCount;
                 }}
@@ -1145,14 +1149,17 @@ def generate_html(data, output_file):
                     type: 'none'
                 }},
                 axisLabel: {{
-                    fontSize: 11,
-                    width: 180,
+                    fontSize: 9,
+                    width: 150,
                     overflow: 'truncate',
                     formatter: function(value) {{
-                        if (value.length > 25) {{
-                            return value.substring(0, 25) + '...';
+                        // Extract subclassname after '|' separator
+                        const idx = value.indexOf('|');
+                        const displayName = idx >= 0 ? value.substring(idx + 1) : value;
+                        if (displayName.length > 25) {{
+                            return displayName.substring(0, 25) + '...';
                         }}
-                        return value;
+                        return displayName;
                     }}
                 }},
                 splitLine: {{
@@ -1266,12 +1273,14 @@ def generate_html(data, output_file):
                 classHierarchy.forEach((cls, clsIdx) => {{
                     const subsCount = cls.subclasses.length;
                     if (subsCount > 0) {{
+                        // Use alternating opacity to distinguish adjacent class regions
+                        const opacity = (clsIdx % 2 === 0) ? '20' : '40';
                         markAreaData.push([
                             {{
-                                yAxis: currentIndex - 0.5,
-                                itemStyle: {{ color: classColors[clsIdx % classColors.length] + '80' }}
+                                yAxis: currentIndex,
+                                itemStyle: {{ color: classColors[clsIdx % classColors.length] + opacity }}
                             }},
-                            {{ yAxis: currentIndex + subsCount - 0.5 }}
+                            {{ yAxis: currentIndex + subsCount - 1 }}
                         ]);
                         currentIndex += subsCount;
                     }}
