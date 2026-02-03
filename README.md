@@ -1,237 +1,117 @@
-# Quick Log (ql)
+# Quick Log - Vue 3 版本
 
-A fast log analysis and visualization tool. Uses ripgrep to extract key information from log files and generates interactive ECharts timeline visualizations.
+日志时间线可视化工具的 Vue 3 重写版本。
 
-## ✨ Features
+## ✨ 功能特性
 
-- 🚀 **High Performance** - Powered by ripgrep for blazing fast log search
-- 📊 **Visualization** - Generates interactive ECharts timeline charts with zoom, filter, and annotation support
-- 🔧 **Configurable** - Python config files define matching rules with dynamic function support
-- 🖥️ **Cross-Platform** - Supports Windows, Linux, and macOS
+- 🚀 **Vue 3 + TypeScript** - 使用最新的 Vue 3 组合式 API 和 TypeScript
+- 📊 **ECharts 可视化** - 交互式时间线图表，支持缩放、平移、数据筛选
+- 📂 **分类管理** - 侧边栏分类层级展示，支持批量显示/隐藏
+- 📌 **标注功能** - 双击添加标注，支持自定义颜色
+- 📍 **垂直线标记** - 在时间轴上添加重要时间点标记
+- ⭕ **套索选择** - 自由绘制选择区域，框选数据点
+- 💾 **数据持久化** - 标注和垂直线自动保存到 localStorage
+- 📤 **导入/导出** - 支持标注数据的导入导出
 
-## 📦 Installation
-
-### Windows
-
-```cmd
-install.cmd
-```
-
-### Linux / macOS
+## 📦 安装
 
 ```bash
-chmod +x install.sh
-./install.sh
+cd ql-vue
+npm install
 ```
 
-The install script adds the tool directory to your system PATH.
-
-## 🚀 Quick Start
-
-### One-Command Usage
+## 🚀 开发
 
 ```bash
-# Basic usage: analyze log using configs/*.py
-ql <log_file>
-
-# Specify config file
-ql <log_file> audio.py
-
-# Examples
-ql log/1.log
-ql log/1.log configs/audio.py
+npm run dev
 ```
 
-After execution, JSON and HTML files are generated in the `output/` directory, and the browser opens automatically.
-
-### Step-by-Step Execution
+## 🏗️ 构建
 
 ```bash
-# Step 1: Log -> JSON
-python log2json.py log/1.log configs/*.py -o output/result.json
-
-# Step 2: JSON -> HTML
-python json2html.py output/result.json output/result.html
+npm run build
 ```
 
-## 📁 Project Structure
+## 📁 项目结构
 
 ```
-ql/
-├── ql.cmd / ql          # One-click analysis script (Windows / Linux)
-├── log2json.py          # Log extraction tool: Log -> JSON
-├── json2html.py         # Visualization tool: JSON -> HTML
-├── install.cmd / .sh    # Installation scripts
-├── configs/             # Config files directory
-├── configsSample/       # Sample config files
-│   ├── audio.py         # Audio subsystem config example
-│   └── system.py        # System config example
-├── docs/                # Documentation
-│   ├── log2json.md      # log2json usage guide
-│   └── json2html.md     # json2html usage guide
-├── tests/               # Test files
-│   ├── test_ql.py       # Test main script
-│   ├── test_config.py   # Test config file
-│   └── test_log.log     # Test log file
-├── example/             # Example files
-├── log/                 # Log files directory
-├── output/              # Output directory
-└── rg/                  # ripgrep executable
+ql-vue/
+├── src/
+│   ├── components/          # Vue 组件
+│   │   ├── CategorySidebar.vue    # 分类侧边栏
+│   │   ├── Toolbar.vue            # 工具栏
+│   │   ├── TimelineChart.vue      # 时间线图表
+│   │   ├── AnnotationPanel.vue    # 标注面板
+│   │   └── VLinePanel.vue         # 垂直线面板
+│   ├── stores/              # Pinia 状态管理
+│   │   └── timeline.ts      # 时间线数据 store
+│   ├── types/               # TypeScript 类型定义
+│   │   └── index.ts
+│   ├── utils/               # 工具函数
+│   │   ├── time.ts          # 时间格式化
+│   │   ├── colors.ts        # 颜色配置
+│   │   └── dataProcessor.ts # 数据处理
+│   ├── App.vue              # 主应用组件
+│   ├── main.ts              # 入口文件
+│   └── style.css            # 全局样式
+├── public/
+├── package.json
+├── vite.config.ts
+└── tsconfig.json
 ```
 
-## 🔧 Configuration
+## 📊 数据格式
 
-Config files use Python syntax to define how to extract information from logs.
+JSON 数据格式与原版保持一致：
 
-### Basic Structure
-
-```python
-"""Config file example"""
-import re
-
-# Primary category name
-classname = "Audio Subsystem"
-
-# Secondary category configuration
-subclasses = [
+```json
+{
+  "name": "日志分析",
+  "all": [
     {
-        "subclassname": "ADSP Init",
-        "rules": [
+      "classname": "主类名",
+      "subclasses": [
+        {
+          "subclassname": "子类名",
+          "points": [
             {
-                "pattern": "audioadsprpcd.*fastrpc_apps_user_init done",
-                "cursor": "FASTRPC_INIT_DONE",
-                "layer": 1
-            },
-            {
-                "pattern": "audioadsprpcd.*libadsprpc.so loaded",
-                "cursor": "ADSPRPC_LOADED",
-                "layer": 2
+              "cursor": "标识符",
+              "msg": "日志消息",
+              "line": 1,
+              "timestamp": 1722149750970,
+              "layer": 1
             }
-        ]
+          ]
+        }
+      ]
     }
-]
+  ]
+}
 ```
 
-### Field Description
+## 🎯 使用说明
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `classname` | str | Primary category name |
-| `subclassname` | str / function | Secondary category name |
-| `pattern` | str | ripgrep regex pattern |
-| `cursor` | str / function | Point identifier (displayed in chart) |
-| `layer` | int / function | Layer (1=blue primary, 2=green secondary, 3=yellow auxiliary) |
+1. **加载数据**: 拖放 JSON 文件或点击选择文件，或使用示例数据
+2. **查看图表**: 使用滚轮缩放，拖拽平移
+3. **筛选数据**: 在侧边栏勾选/取消分类
+4. **添加标注**: 双击数据点添加标注
+5. **添加垂直线**: 点击"添加垂直线"后在图表上点击
+6. **框选数据**: 点击"框选"后在图表上绘制选择区域
 
-### Dynamic Functions
+## 🔧 技术栈
 
-Supports using functions to dynamically generate `subclassname`, `cursor`, and `layer`:
+- Vue 3.4
+- TypeScript 5
+- Vite 5
+- Pinia
+- ECharts 5.4
 
-```python
-def extract_function_name(line, match):
-    """Extract function name from log line as cursor"""
-    m = re.search(r':(\w+):', line)
-    return m.group(1) if m else "UNKNOWN"
+## 📝 与原版的差异
 
-def level_to_layer(line, match):
-    """Determine layer based on log level"""
-    if ' E ' in line:
-        return 1  # Error highlighted in blue
-    elif ' W ' in line:
-        return 2  # Warning in green
-    return 3      # Others in yellow
+Vue 3 版本重构了整体架构：
 
-subclasses = [
-    {
-        "subclassname": "Log Events",
-        "rules": [
-            {
-                "pattern": "AudioFlinger.*start",
-                "cursor": extract_function_name,  # Use function
-                "layer": level_to_layer           # Use function
-            }
-        ]
-    }
-]
-```
-
-## 📊 Visualization Features
-
-The generated HTML page includes the following interactive features:
-
-- **Timeline View** - X-axis for time, Y-axis for categories
-- **Zoom & Pan** - Mouse wheel to zoom, drag to pan
-- **Event Filtering** - Filter by category, layer
-- **Detail View** - Hover to show complete log info
-- **Event Linking** - Automatically connects related events to show sequence
-- **Line Jump** - Click to locate original log line
-
-### Layer Color Guide
-
-| Layer | Color | Purpose |
-|-------|-------|---------|
-| 1 | 🔵 Blue | Primary/Core events |
-| 2 | 🟢 Green | Secondary/Related events |
-| 3 | 🟡 Yellow | Auxiliary/Detail events |
-
-## 📖 Documentation
-
-- [log2json.py Detailed Guide](docs/log2json.md)
-- [json2html.py Detailed Guide](docs/json2html.md)
-
-## 🔄 Workflow
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Log File   │     │   JSON Data  │     │   HTML Page  │
-│   (*.log)    │ ──► │   (*.json)   │ ──► │   (*.html)   │
-└──────────────┘     └──────────────┘     └──────────────┘
-        │                   │                    │
-        │                   │                    │
-        ▼                   ▼                    ▼
-   log2json.py         Intermediate         ECharts
-   + Config files      Reusable format      Interactive Timeline
-```
-
-## 💡 Use Cases
-
-- Android logcat log analysis
-- System boot process analysis
-- Audio/Video subsystem debugging
-- Performance timing analysis
-- Multi-module interaction visualization
-
-## 🧪 Self-Test
-
-The project includes an automated test suite to verify core functionality:
-
-### Run Tests
-
-```bash
-# Windows
-test.cmd
-
-# Linux / macOS
-./test.sh
-
-# Or run Python directly
-python tests/test_ql.py
-```
-
-### Test Coverage
-
-| Test Item | Description |
-|-----------|-------------|
-| log2json basic | JSON generation, format validation |
-| json2html basic | HTML generation, ECharts content |
-| Dynamic functions | lambda/function generated cursor, layer, subclassname |
-| Timestamp parsing | Android logcat time format parsing |
-| Sample configs | configsSample config file validation |
-
-## 📋 Requirements
-
-- Python 3.6+
-- ripgrep (bundled in `rg/` directory)
-
-## 📄 License
-
-MIT License
+- 使用 Vue 3 组合式 API 替代原版的纯 JavaScript
+- 使用 Pinia 进行状态管理
+- 组件化设计，更易维护和扩展
+- TypeScript 提供完整的类型支持
+- 保持了原版的所有核心功能和视觉风格

@@ -33,6 +33,7 @@ if sys.platform == 'win32':
 def get_rg_path() -> str:
     """Get ripgrep executable path."""
     script_dir = os.path.dirname(os.path.abspath(__file__))
+    # rg is in the same directory as this script (d:\ql\rg)
     local_rg = os.path.join(script_dir, "rg", "rg.exe" if sys.platform == 'win32' else "rg")
     return local_rg if os.path.exists(local_rg) else "rg"
 

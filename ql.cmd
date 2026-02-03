@@ -1,99 +1,155 @@
 @echo off
-chcp 65001 >nul 2>&1
 setlocal enabledelayedexpansion
 
-:: ql - Quick Log Analysis Tool
-:: Usage: ql <log_file> [config_pattern]
-:: Examples:
-::   ql aaa.log
-::   ql aaa.log audio.py
-::   ql log\1.log qlcfg\*.py
+:: Quick Log - Log Analysis Tool
+:: Usage: ql <log_file> [config1.py] [config2.py] ...
 
-:: Save original working directory
-set "ORIG_DIR=%CD%"
+:: Set paths
 set "SCRIPT_DIR=%~dp0"
+set "NODE_PATH=C:\Users\Public\abin\node"
+
+:: Get current directory (support UNC paths)
+:: Use pushd/popd trick to handle UNC paths
+for /f "tokens=*" %%i in ('cd') do set "WORK_DIR=%%i"
+:: If current dir is UNC path, %CD% might fail, use log file's directory instead
+if "!WORK_DIR!"=="" set "WORK_DIR=%~dp1"
+if "!WORK_DIR:~-1!"=="\" set "WORK_DIR=!WORK_DIR:~0,-1!"
+
+:: Add Node.js to PATH
+set "PATH=%NODE_PATH%;%PATH%"
 
 :: Check arguments
 if "%~1"=="" (
-    echo Usage: ql ^<log_file^> [config_pattern]
+    echo Quick Log - Log Timeline Visualization Tool
+    echo.
+    echo Usage: ql ^<log_file^> [config1.py] [config2.py] ...
     echo.
     echo Examples:
-    echo   ql aaa.log              Use qlcfg\*.py to analyze log
-    echo   ql aaa.log audio.py     Use only audio.py config
-    echo   ql log\1.log            Analyze log in log directory
+    echo   ql log/1.log                    - Use qlcfg/*.py configs
+    echo   ql log/1.log audio.py           - Use specified config
+    echo   ql log/1.log configs/audio.py configs/system.py
+    echo.
     exit /b 1
 )
 
-:: Get absolute path of log file (resolve relative to original directory)
-set "LOG_FILE=%~f1"
-set "CONFIG_PATTERN=%~2"
+:: Get log file name and full path
+set "LOG_FILE=%~1"
+set "LOG_NAME=%~n1"
+set "LOG_FULL=%~f1"
+set "LOG_DIR=%~dp1"
 
-:: Determine qlcfg folder location
-:: First check parent directory (ql's sibling folder), then check inside ql folder
-set "QLCFG_DIR="
-if exist "%SCRIPT_DIR%..\qlcfg\" (
-    set "QLCFG_DIR=%SCRIPT_DIR%..\qlcfg"
-) else if exist "%SCRIPT_DIR%qlcfg\" (
-    set "QLCFG_DIR=%SCRIPT_DIR%qlcfg"
-) else if exist "%SCRIPT_DIR%configs\" (
-    :: Fallback to legacy configs folder
-    set "QLCFG_DIR=%SCRIPT_DIR%configs"
+:: Set output file path
+:: If log file is on a network path, output to log file's directory
+:: Otherwise output to current directory
+echo !LOG_FULL! | findstr /b "\\\\" >nul
+if not errorlevel 1 (
+    :: Network path - output to same directory as log file
+    set "JSON_FILE=!LOG_DIR!!LOG_NAME!.json"
+) else (
+    :: Local path - output to current directory
+    set "JSON_FILE=!WORK_DIR!\!LOG_NAME!.json"
 )
 
-:: Use default qlcfg\*.py if not specified
-if "%CONFIG_PATTERN%"=="" (
-    if defined QLCFG_DIR (
-        set "CONFIG_PATTERN=!QLCFG_DIR!\*.py"
-    ) else (
-        echo [ERROR] No qlcfg or configs folder found
-        exit /b 1
+:: Convert JSON_FILE to forward slashes for URL
+set "JSON_PATH=!JSON_FILE!"
+set "JSON_PATH=!JSON_PATH:\=/!"
+
+:: Build log2json command arguments
+set "CONFIG_ARGS="
+set "ARGNUM=0"
+for %%a in (%*) do (
+    set /a ARGNUM+=1
+    if !ARGNUM! gtr 1 (
+        set "CONFIG_ARGS=!CONFIG_ARGS! %%a"
     )
 )
 
-:: Get log file name without path and extension, replace dots with underscores
-set "LOG_NAME=%~n1"
-set "LOG_NAME=!LOG_NAME:.=_!"
-
-:: Output file paths (in original working directory)
-set "OUTPUT_DIR=%ORIG_DIR%\output"
-set "JSON_FILE=%OUTPUT_DIR%\%LOG_NAME%.json"
-set "HTML_FILE=%OUTPUT_DIR%\%LOG_NAME%.html"
-
-:: Ensure output directory exists
-if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-
-echo.
-echo ========================================
-echo   ql - Quick Log
-echo ========================================
-echo.
-echo [LOG]    %LOG_FILE%
-echo [CONFIG] %CONFIG_PATTERN%
-echo [OUTPUT] %HTML_FILE%
-echo.
-
-:: Step 1: Log -> JSON
-echo [1/2] Extracting log data...
-python "%SCRIPT_DIR%log2json.py" "%LOG_FILE%" %CONFIG_PATTERN% -o "%JSON_FILE%"
-if errorlevel 1 (
-    echo [ERROR] log2json failed
-    exit /b 1
+:: If no config files specified, use default qlcfg/*.py
+if "%CONFIG_ARGS%"=="" (
+    set "CONFIG_ARGS=%SCRIPT_DIR%qlcfg\*.py"
 )
 
-:: Step 2: JSON -> HTML
+echo ========================================
+echo   Quick Log - Log Analysis
+echo ========================================
 echo.
-echo [2/2] Generating HTML...
-python "%SCRIPT_DIR%json2html.py" "%JSON_FILE%" "%HTML_FILE%"
+
+:: Step 1: Run log2json.py
+echo [1/2] Analyzing log file...
+echo       Log: %LOG_FILE%
+echo       Config: %CONFIG_ARGS%
+echo.
+
+python "%SCRIPT_DIR%log2json.py" "%LOG_FILE%" %CONFIG_ARGS% -o "%JSON_FILE%"
+
 if errorlevel 1 (
-    echo [ERROR] json2html failed
+    echo.
+    echo [ERROR] Log analysis failed!
     exit /b 1
 )
 
 echo.
-echo ========================================
-echo [DONE] %HTML_FILE%
-echo ========================================
+
+:: Step 2: Open visualization in browser
+echo [2/2] Starting visualization...
+
+:: Check if dist/index.html exists (production build)
+if not exist "%SCRIPT_DIR%dist\index.html" goto use_dev_server
+
+echo       Using production build (dist)
+
+:: Check if server is already running
+curl -s -m 2 http://localhost:8080 >nul 2>&1
+if not errorlevel 1 (
+    echo       HTTP server already running on port 8080
+    goto open_browser_prod
+)
+
+echo       Starting HTTP server on port 8080...
+start /b cmd /c "python "%SCRIPT_DIR%serve.py" 8080"
+timeout /t 2 /nobreak >nul
+
+:open_browser_prod
+set "URL=http://localhost:8080/?file=/file/!JSON_PATH!"
+goto open_browser
+
+:use_dev_server
+echo       No dist build found, using dev server
+
+set "PORT=5173"
+curl -s http://localhost:5173 >nul 2>&1
+if not errorlevel 1 goto server_ready
+
+curl -s http://localhost:5174 >nul 2>&1
+if not errorlevel 1 (
+    set "PORT=5174"
+    goto server_ready
+)
+
+echo       Starting dev server...
+start /b cmd /c "cd /d %SCRIPT_DIR% && npm.cmd run dev"
+
+:wait_server
+timeout /t 1 /nobreak >nul
+curl -s http://localhost:5173 >nul 2>&1
+if not errorlevel 1 goto server_ready
+curl -s http://localhost:5174 >nul 2>&1
+if not errorlevel 1 (
+    set "PORT=5174"
+    goto server_ready
+)
+goto wait_server
+
+:server_ready
+set "URL=http://localhost:!PORT!/?file=/file/!JSON_PATH!"
+
+:open_browser
+:: Open browser
+echo       Opening browser: !URL!
+start "" "!URL!"
+
+echo.
+echo [OK] Done!
 echo.
 
-:: Auto-open HTML file
-start "" "%HTML_FILE%"
+endlocal
